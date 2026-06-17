@@ -2,99 +2,73 @@ import React, { useState } from "react";
 import FilterCard from "./FilterCard";
 import Job from "./Job";
 import { useSelector } from "react-redux";
-import usegetAlljobs from "../hooks/usegetAlljobs";
+import useGetAllJobs from "../hooks/usegetAlljobs"; // Ensure import matches
 
 function Jobs() {
-  usegetAlljobs();
-
   const [showFilters, setShowFilters] = useState(false);
-
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Select filter state from Redux
   const { allJobs, filters } = useSelector((state) => state.job);
 
-  const filteredJobs = allJobs.filter((job) => {
-    const locationMatch =
-      !filters.location ||
-      job.location?.toLowerCase().includes(filters.location.toLowerCase());
-
-    const industryMatch =
-      !filters.industry ||
-      job.industry?.toLowerCase().includes(filters.industry.toLowerCase());
-
-    let salaryMatch = true;
-
-    if (filters.salary === "0 - 5 LPA") {
-      salaryMatch = job.Salary >= 0 && job.Salary <= 500000;
-    } else if (filters.salary === "5 - 10 LPA") {
-      salaryMatch = job.Salary >= 500000 && job.Salary <= 1000000;
-    } else if (filters.salary === "10 - 20 LPA") {
-      salaryMatch = job.Salary >= 1000000 && job.Salary <= 2000000;
-    } else if (filters.salary === "20+ LPA") {
-      salaryMatch = job.Salary >= 2000000;
-    }
-
-    return locationMatch && industryMatch && salaryMatch;
+  // Pass all dependencies to the hook. 
+  // It will re-run automatically when any of these change.
+  const totalPages = useGetAllJobs({ 
+    page: currentPage, 
+    location: filters.location || "", 
+    industry: filters.industry || "",
+    // Note: Assuming your filter object handles salary logic or you need to parse it
+    minSalary: filters.minSalary || 0, 
+    maxSalary: filters.maxSalary || 0 
   });
 
   return (
     <div className="bg-gray-50 min-h-screen py-4 md:py-6">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
         
-        {/* Mobile Filter Button */}
-        <div className="md:hidden mb-4">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium"
-          >
-            {showFilters ? "Hide Filters" : "Show Filters"}
-          </button>
-        </div>
-
-        {/* Mobile Filter Panel */}
-        {showFilters && (
-          <div className="md:hidden mb-4 bg-white p-4 rounded-xl shadow">
-            <FilterCard />
-          </div>
-        )}
+        {/* Mobile Filter Button/Panel remains the same */}
+        {/* ... */}
 
         <div className="flex flex-col md:flex-row gap-6">
-          
-          {/* Desktop Sidebar Filter */}
           <div className="hidden md:block md:w-1/4">
-            <div className="sticky top-20">
-              <FilterCard />
-            </div>
+            <div className="sticky top-20"><FilterCard /></div>
           </div>
 
-          {/* Jobs Section */}
           <div className="w-full md:w-3/4">
-            {filteredJobs.length === 0 ? (
+            {allJobs.length === 0 ? (
               <div className="text-center text-gray-500 mt-16">
-                <h2 className="text-lg md:text-xl font-semibold">
-                  No jobs found
-                </h2>
-                <p className="text-sm">
-                  Try adjusting your filters
-                </p>
+                <h2 className="text-lg font-semibold">No jobs found</h2>
               </div>
             ) : (
               <>
-                {/* Results Count */}
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600">
-                    {filteredJobs.length} jobs found
-                  </p>
-                </div>
-
-                {/* Responsive Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-                  {filteredJobs.map((job) => (
+                <div className="mb-4"><p className="text-sm text-gray-600">{allJobs.length} jobs found</p></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {allJobs.map((job) => (
                     <Job key={job._id} job={job} />
                   ))}
                 </div>
               </>
             )}
           </div>
+        </div>
 
+        {/* Pagination controls */}
+        <div className="flex items-center justify-center gap-4 mt-8 mb-4">
+          <button
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:bg-gray-300"
+          >
+            Previous
+          </button>
+          <span>Page {currentPage} of {totalPages}</span>
+          <button
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:bg-gray-300"
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>

@@ -56,19 +56,36 @@ export const postjob = async (req, res) => {
 export const getAlljobs = async (req, res) => {
   try {
     const keyword = req.query.keyword || "";
+    const location=req.query.location||"";
+    const salary=req.query.Salary||"";
+    const industry=req.query.industry||"";
+    const page = Number(req.query.page) || 1;
+const limit = Number(req.query.limit) || 12;
+const skip = (page - 1) * limit;
+const filterConditions = {
+  title: { $regex: keyword, $options: "i" },
+  location: { $regex: location, $options: "i" },
+  industry:{$regex:industry,$options:"i"}
+};
 
-    const jobs = await Job.find({
-      title: { $regex: keyword, $options: "i" },
-    })
-      .populate("company", "name logo")
-      .sort({ createdAt: -1 });
+const totalJobs = await Job.countDocuments(filterConditions);
+
+const jobs = await Job.find(filterConditions)
+  .populate("company", "name logo")
+  .sort({ createdAt: -1 })
+  .skip(skip)
+  .limit(limit);
 
     return res.status(200).json({
       success: true,
       jobs,
+        totalJobs,
+  totalPages: Math.ceil(totalJobs / limit),
+  currentPage: page,
     });
   } catch (err) {
     console.log(err);
+    return res.status(500).json({ success: false, message: "Failed to fetch jobs" });
   }
 };
 
