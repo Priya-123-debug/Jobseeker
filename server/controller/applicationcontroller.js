@@ -114,6 +114,7 @@ export const updatestatus = async (req, res) => {
 
     application.status = status.toLowerCase();
     await application.save();
+    
 
     return res.status(200).json({
       message: "status updated successfully",
