@@ -18,7 +18,8 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 const corsOptions = {
-  origin: process.env.CLIENT_URL || "http://localhost:5173"||"https://seeker-3h0o45n52-supriya-kumaris-projects.vercel.app/",
+  origin: 
+  [process.env.CLIENT_URL , "http://localhost:5173","https://seeker-peach.vercel.app/"].filter(Boolean),
   credentials: true,
 };
 app.use(cors(corsOptions));
