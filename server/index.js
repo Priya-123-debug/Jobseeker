@@ -17,11 +17,39 @@ dotenv.config();
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+// const corsOptions = {
+//   origin: 
+//   [process.env.CLIENT_URL , "http://localhost:5173","https://seeker-peach.vercel.app"].filter(Boolean),
+//   credentials: true,
+// };
+   
 const corsOptions = {
-  origin: 
-  [process.env.CLIENT_URL , "http://localhost:5173","https://seeker-peach.vercel.app"].filter(Boolean),
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      process.env.CLIENT_URL,
+      "http://localhost:5173",
+      "https://seeker-peach.vercel.app",
+    ].filter(Boolean);
+
+    // allow if origin matches any allowed origin (with or without trailing slash)
+    if (!origin || allowedOrigins.some(allowed => 
+      origin === allowed || origin === allowed.replace(/\/$/, "")
+    )) {
+      callback(null, true);
+    } else {
+      console.log("CORS blocked:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
 };
+
+
+
+
+
+
+
 app.use(cors(corsOptions));
 app.use("/api/v1/user", userroute);
 app.use("/api/v1/company", companyroute);
