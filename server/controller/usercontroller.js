@@ -253,8 +253,8 @@ export const verifyOtp = async (req, res) => {
       .cookie("token", token, {
         maxAge: 24 * 60 * 60 * 1000,
         httpOnly: true,  
-        sameSite: "lax",
-         secure: false 
+         sameSite: "none",
+  secure: true
       })
       .json({
         message: `Welcome back ${user.fullname}`,
@@ -340,17 +340,24 @@ export const resetPassword = async (req, res) => {
 
 
 
-export const logout=async(req,res)=>{
-	try{
-return res.status(200).cookie("token","",{maxAge:0}).json({
-	message:"logged out successfully",
-	success:true
-})
-	}
-	catch(err){
-		console.log(err);
-	}
+export const logout = async (req, res) => {
+  try {
+    return res.status(200).cookie("token", "", {
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: "none",
+      secure: true
+    }).json({
+      message: "logged out successfully",
+      success: true
+    });
+  } catch (err) {
+    console.log(err);
+  }
 }
+
+
+
 export const updateprofile = async (req, res) => {
   try {
     const { fullname, email, phoneNumber, bio, skills } = req.body;
@@ -398,6 +405,11 @@ export const updateprofile = async (req, res) => {
     });
   }
 };
+
+
+
+
+
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.id).select("-password");
