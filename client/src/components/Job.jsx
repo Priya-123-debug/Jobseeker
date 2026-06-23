@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import BookmarkButton from "./BookmarkButton"; 
 
 const timeAgo = (dateString) => {
   if (!dateString) return "Unknown";
@@ -52,6 +53,8 @@ function Job({ job }) {
         <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
           {timeAgo(job.createdAt)}
         </span>
+         <BookmarkButton jobId={job._id} />
+
       </div>
 
       {/* Description */}
@@ -86,6 +89,7 @@ function Job({ job }) {
         >
           Details
         </button>
+
       </div>
     </div>
   );
