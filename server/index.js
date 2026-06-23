@@ -17,21 +17,14 @@ dotenv.config();
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
-// const corsOptions = {
-//   origin: 
-//   [process.env.CLIENT_URL , "http://localhost:5173","https://seeker-peach.vercel.app"].filter(Boolean),
-//   credentials: true,
-// };
-   
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       process.env.CLIENT_URL,
       "http://localhost:5173",
-      "https://seeker-peach.vercel.app",
+      "https://jobseeker-nu.vercel.app",  // ← update this
     ].filter(Boolean);
 
-    // allow if origin matches any allowed origin (with or without trailing slash)
     if (!origin || allowedOrigins.some(allowed => 
       origin === allowed || origin === allowed.replace(/\/$/, "")
     )) {
@@ -43,7 +36,6 @@ const corsOptions = {
   },
   credentials: true,
 };
-
 
 
 
