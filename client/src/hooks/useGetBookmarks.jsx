@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import axios from "axios";
 import { useDispatch } from "react-redux";
-import { BOOKMARK_API_END_POINT } from "../utils/constant";
+import { BOOKMARK_API_END_POINT } from "../utilis/constant";
 import { setBookmarks } from "../redux/bookmarkSlice";
 
 const useGetBookmarks = () => {
