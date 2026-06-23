@@ -49,15 +49,11 @@ app.use("/api/v1/job", jobroute);
 app.use("/api/v1/application", applicationroute);
 app.use("/api/v1/chatbot", chatbotroute);
 import { sendOtpEmail } from "./utlis/sendEmail.js";
+import bookmarkroute from "./routes/bookmarkroute.js";
 
-app.get("/api/v1/test-email", async (req, res) => {
-  try {
-    await sendOtpEmail("p46517823456@gmail.com", "123456");
-    res.json({ success: true, message: "Email sent!" });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
-});
+app.use("/api/v1/bookmark", bookmarkroute);
+
+
 
 app.listen(PORT, () => {
   connectDB();
