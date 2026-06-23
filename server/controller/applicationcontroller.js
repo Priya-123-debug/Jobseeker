@@ -1,6 +1,8 @@
 import Application from "../Model/Application.js";
 import Job from "../Model/jobmodel.js";
 
+import { sendStatusEmail } from "../utlis/sendEmail.js";
+
 export const applyjob = async (req, res) => {
   try {
     const userID = req.id;
@@ -104,7 +106,18 @@ export const updatestatus = async (req, res) => {
       });
     }
 
-    const application = await Application.findById(applicationId);
+    // populate applicant email/name and job title + company name
+    const application = await Application.findById(applicationId)
+      .populate("applicant", "fullname email")
+      .populate({
+        path: "job",
+        select: "title",
+        populate: {
+          path: "company",
+          select: "name"
+        }
+      });
+
     if (!application) {
       return res.status(404).json({
         message: "Application not found",
@@ -112,9 +125,23 @@ export const updatestatus = async (req, res) => {
       });
     }
 
+    // update status
     application.status = status.toLowerCase();
     await application.save();
-    
+
+    // send email to student
+    try {
+      await sendStatusEmail(
+        application.applicant.email,
+        application.applicant.fullname,
+        application.job.title,
+        application.job.company.name,
+        application.status
+      );
+    } catch (emailErr) {
+      // email failed but status was already saved — don't fail the whole request
+      console.log("Email sending failed:", emailErr.message);
+    }
 
     return res.status(200).json({
       message: "status updated successfully",
@@ -122,5 +149,10 @@ export const updatestatus = async (req, res) => {
     });
   } catch (err) {
     console.log(err);
+    return res.status(500).json({
+      success: false,
+      message: "Update failed"
+    });
   }
 };
+
