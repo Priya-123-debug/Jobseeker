@@ -1,3 +1,8 @@
+import axios from "axios";
+
+axios.defaults.withCredentials = true;
+axios.defaults.baseURL = "https://jobseeker-jqt2.onrender.com";
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import './index.css';
