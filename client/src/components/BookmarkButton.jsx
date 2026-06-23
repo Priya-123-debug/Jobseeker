@@ -2,7 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { useSelector, useDispatch } from "react-redux";
 import { toggleBookmarkLocal } from "../redux/bookmarkSlice";
-import { BOOKMARK_API_END_POINT } from "../utils/constant";
+import { BOOKMARK_API_END_POINT } from "../utilis/constant";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 
 const BookmarkButton = ({ jobId }) => {
