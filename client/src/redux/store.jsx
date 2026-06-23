@@ -16,6 +16,7 @@ import jobReducer from "./jobSlice.jsx";
 import appliedJobsSlice from "./appliedJobsSlice.jsx";
 import companySlice from "./companySlice.jsx";
 import applicantSlice from "./applicantSlice.jsx";
+import bookmarkReducer from "./bookmarkSlice";
 
 // 1️⃣ Create root reducer
 const rootReducer = combineReducers({
@@ -24,6 +25,7 @@ const rootReducer = combineReducers({
   appliedJobs: appliedJobsSlice,
   company: companySlice,
   application: applicantSlice,
+   bookmark: bookmarkReducer,
 });
 
 // 2️⃣ Persist config

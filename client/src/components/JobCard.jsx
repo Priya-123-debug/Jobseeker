@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import BookmarkButton from "./BookmarkButton";
 
 const timeAgo = (date) => {
   if (!date) return "Recently";
@@ -61,6 +62,7 @@ function JobCard({ job }) {
         >
           View Details
         </button>
+        <BookmarkButton jobId={job._id} />
       </div>
     </div>
   );
