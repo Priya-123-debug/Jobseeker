@@ -26,6 +26,7 @@ import LoginOtp from "./components/Auth/LoginOtp.jsx";
 import Forgetpassword from "./components/Auth/Forgetpassword.jsx";
 import Passwordreset from "./components/Auth/Passwordreset.jsx"
 import Dashboard from "./admin/AdminDashboard.jsx";
+import BackToTop from "./components/BackToTop";
 
 
 
@@ -187,6 +188,7 @@ useEffect(() => {
 }, []);
   return (
     <>
+       <BackToTop />
       <Toaster position="top-right" />
       <RouterProvider router={approuter} />
     </>
