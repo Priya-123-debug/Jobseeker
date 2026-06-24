@@ -55,17 +55,22 @@ export const postjob = async (req, res) => {
 };
 export const getAlljobs = async (req, res) => {
   try {
-    const keyword = req.query.keyword || "";
-    const location=req.query.location||"";
-    const salary=req.query.Salary||"";
-    const industry=req.query.industry||"";
-    const page = Number(req.query.page) || 1;
+   const keyword = req.query.keyword || "";
+const location = req.query.location || "";
+const industry = req.query.industry || "";
+const minSalary = Number(req.query.minSalary) || 0;
+const maxSalary = Number(req.query.maxSalary) || 0;
+const page = Number(req.query.page) || 1;
 const limit = Number(req.query.limit) || 12;
 const skip = (page - 1) * limit;
+
 const filterConditions = {
   title: { $regex: keyword, $options: "i" },
   location: { $regex: location, $options: "i" },
-  industry:{$regex:industry,$options:"i"}
+  industry: { $regex: industry, $options: "i" },
+  // ✅ add salary filter
+  ...(minSalary > 0 && { Salary: { $gte: minSalary } }),
+  ...(maxSalary > 0 && { Salary: { ...filterConditions?.Salary, $lte: maxSalary } }),
 };
 
 const totalJobs = await Job.countDocuments(filterConditions);
