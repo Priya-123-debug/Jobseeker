@@ -1,10 +1,11 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import Job from "./Job";
+import JobSkeleton from "./JobSkeleton"; // ← add this
 import usegetAlljobs from "../hooks/usegetAlljobs";
 
 function Browse() {
-  usegetAlljobs();
+  const { loading } = usegetAlljobs(); // ← destructure loading
   const allJobs = useSelector((state) => state.job?.allJobs ?? []);
 
   return (
@@ -16,11 +17,18 @@ function Browse() {
             All Jobs
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            {allJobs.length} job{allJobs.length !== 1 ? "s" : ""} available
+            {loading ? "Loading..." : `${allJobs.length} job${allJobs.length !== 1 ? "s" : ""} available`}
           </p>
         </div>
 
-        {allJobs.length === 0 ? (
+        {/* ← show skeleton while loading */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {Array(6).fill(0).map((_, i) => (
+              <JobSkeleton key={i} />
+            ))}
+          </div>
+        ) : allJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border">
             <span className="text-5xl mb-4">🔍</span>
             <p className="text-gray-500 font-medium">No jobs found</p>
