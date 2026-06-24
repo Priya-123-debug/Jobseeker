@@ -16,11 +16,13 @@ const usegetAlljobs = ({
   
   const dispatch = useDispatch();
   const [totalPages, setTotalPages] = useState(1);
+   const [loading, setLoading] = useState(true); 
 
   useEffect(() => {
     const fetchAllJobs = async () => {
       try {
         // Now it is safe to use these values because they are guaranteed to exist
+         setLoading(true);
         const res = await axios.get(
           `${JOB_API_END_POINT}/get?page=${page}&location=${location}&industry=${industry}&minSalary=${minSalary}&maxSalary=${maxSalary}`,
           { withCredentials: true }
@@ -33,12 +35,15 @@ const usegetAlljobs = ({
       } catch (error) {
         console.error("Error fetching jobs:", error);
       }
+      finally {
+        setLoading(false); 
+      }
     };
 
     fetchAllJobs();
   }, [dispatch, page, location, industry, minSalary, maxSalary]);
 
-  return totalPages;
+  return { totalPages, loading };
 };
 
 export default usegetAlljobs;
