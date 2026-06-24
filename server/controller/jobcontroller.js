@@ -55,38 +55,41 @@ export const postjob = async (req, res) => {
 };
 export const getAlljobs = async (req, res) => {
   try {
-   const keyword = req.query.keyword || "";
-const location = req.query.location || "";
-const industry = req.query.industry || "";
-const minSalary = Number(req.query.minSalary) || 0;
-const maxSalary = Number(req.query.maxSalary) || 0;
-const page = Number(req.query.page) || 1;
-const limit = Number(req.query.limit) || 12;
-const skip = (page - 1) * limit;
+    const keyword = req.query.keyword || "";
+    const location = req.query.location || "";
+    const industry = req.query.industry || "";
+    const minSalary = Number(req.query.minSalary) || 0;  // ← fix
+    const maxSalary = Number(req.query.maxSalary) || 0;  // ← fix
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
 
-const filterConditions = {
-  title: { $regex: keyword, $options: "i" },
-  location: { $regex: location, $options: "i" },
-  industry: { $regex: industry, $options: "i" },
-  // ✅ add salary filter
-  ...(minSalary > 0 && { Salary: { $gte: minSalary } }),
-  ...(maxSalary > 0 && { Salary: { ...filterConditions?.Salary, $lte: maxSalary } }),
-};
+    const filterConditions = {
+      title: { $regex: keyword, $options: "i" },
+      location: { $regex: location, $options: "i" },
+      industry: { $regex: industry, $options: "i" },
+    };
 
-const totalJobs = await Job.countDocuments(filterConditions);
+    // ← add salary filter
+    if (minSalary > 0 || maxSalary > 0) {
+      filterConditions.Salary = {};
+      if (minSalary > 0) filterConditions.Salary.$gte = minSalary;
+      if (maxSalary > 0) filterConditions.Salary.$lte = maxSalary;
+    }
 
-const jobs = await Job.find(filterConditions)
-  .populate("company", "name logo")
-  .sort({ createdAt: -1 })
-  .skip(skip)
-  .limit(limit);
+    const totalJobs = await Job.countDocuments(filterConditions);
+    const jobs = await Job.find(filterConditions)
+      .populate("company", "name logo")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     return res.status(200).json({
       success: true,
       jobs,
-        totalJobs,
-  totalPages: Math.ceil(totalJobs / limit),
-  currentPage: page,
+      totalJobs,
+      totalPages: Math.ceil(totalJobs / limit),
+      currentPage: page,
     });
   } catch (err) {
     console.log(err);
