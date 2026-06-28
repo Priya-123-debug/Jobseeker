@@ -362,34 +362,57 @@ export const updateprofile = async (req, res) => {
   try {
     const { fullname, email, phoneNumber, bio, skills } = req.body;
     const userId = req.id;
-    const file=req.file;
-    const fileuri=getDataUri(file);
-    const cloudresponse=await cloudinary.uploader.upload(fileuri.content);
 
+    //  Use req.files (from multiUpload) instead of req.file
+    const profileImageFile = req.files?.profileImage?.[0];
+    const resumeFile       = req.files?.resume?.[0];
 
+    //  Find user first before doing anything
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    if (fullname) user.fullname = fullname;
-    if (email) user.email = email.toLowerCase();
+    //  Update basic fields
+    if (fullname)    user.fullname    = fullname;
+    if (email)       user.email       = email.toLowerCase();
     if (phoneNumber) user.phoneNumber = phoneNumber;
 
     if (!user.profile) user.profile = {};
 
     if (bio !== undefined) user.profile.bio = bio;
-    if (Array.isArray(skills)) user.profile.skills = skills;
-  if (cloudresponse) {
-  if (!user.profile) {
-    user.profile = {};
-  }
 
-  user.profile.resume = cloudresponse.secure_url;
-  user.profile.resumeoriginalname = file.originalname;
-}
+    //  Fix: skills comes as JSON string from FormData, not an array
+    if (skills) {
+      try {
+        const parsed = JSON.parse(skills);
+        if (Array.isArray(parsed)) user.profile.skills = parsed;
+      } catch {
+        // fallback if sent as plain comma-separated string
+        user.profile.skills = skills
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+    }
 
+    //  Only upload profile image if a new one was sent
+    if (profileImageFile) {
+      const fileUri       = getDataUri(profileImageFile);
+      const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+      user.profile.profileImage = cloudResponse.secure_url;
+    }
 
+    //  Only upload resume if a new one was sent
+    if (resumeFile) {
+      const fileUri       = getDataUri(resumeFile);
+      const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+      user.profile.resume             = cloudResponse.secure_url;
+      user.profile.resumeoriginalname = resumeFile.originalname;
+    }
+
+    //  markModified needed for nested profile object changes to save in MongoDB
+    user.markModified("profile");
     await user.save();
 
     return res.status(200).json({
@@ -397,6 +420,7 @@ export const updateprofile = async (req, res) => {
       message: "Profile updated successfully",
       user,
     });
+
   } catch (err) {
     console.error(err);
     return res.status(500).json({
