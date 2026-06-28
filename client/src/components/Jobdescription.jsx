@@ -259,7 +259,11 @@ function Jobdescription() {
               </ul>
             </Section>
           )}
-
+          
+{/* Debug - remove later */}
+<p className="text-red-500 text-xs">
+  Role: {user?.role} | User: {user ? "logged in" : "not logged in"}
+</p>
 
           {user?.role === "student" && (
   <Section title="🤖 AI Resume Analyzer">
