@@ -6,3 +6,4 @@ export const APPLICATION_API_END_POINT = `${BASE}/api/v1/application`;
 export const COMPANY_API_END_POINT = `${BASE}/api/v1/company`;
 export const CHATBOT_API_END_POINT = `${BASE}/api/v1/chatbot`;
 export const BOOKMARK_API_END_POINT = "https://jobseeker-jqt2.onrender.com/api/v1/bookmark";
+export const RESUME_ANALYZER_API_END_POINT = "https://jobseeker-jqt2.onrender.com/api/v1/resume";

@@ -12,6 +12,9 @@ import companyroute from "./routes/companyroute.js";
 import jobroute from "./routes/jobroute.js";
 import applicationroute from "./routes/applicationroute.js";
 import chatbotroute from "./routes/chatbotroute.js";
+import resumeanalyzerroute from "./routes/resumeanalyzerroute.js";
+import { sendOtpEmail } from "./utlis/sendEmail.js";
+import bookmarkroute from "./routes/bookmarkroute.js";
 
 dotenv.config();
 app.use(express.json());
@@ -48,8 +51,8 @@ app.use("/api/v1/company", companyroute);
 app.use("/api/v1/job", jobroute);
 app.use("/api/v1/application", applicationroute);
 app.use("/api/v1/chatbot", chatbotroute);
-import { sendOtpEmail } from "./utlis/sendEmail.js";
-import bookmarkroute from "./routes/bookmarkroute.js";
+app.use("/api/v1/resume", resumeanalyzerroute);
+
 
 app.use("/api/v1/bookmark", bookmarkroute);
 

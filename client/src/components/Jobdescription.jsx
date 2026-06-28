@@ -6,6 +6,8 @@ import toast from "react-hot-toast";
 import useGetAppliedJobs from "../hooks/useGetAppliedJobs";
 import { setAppliedJobs } from "../redux/appliedJobsSlice";
 import { JOB_API_END_POINT, APPLICATION_API_END_POINT } from "../utilis/constant";
+import ResumeAnalyzer from "./ResumeAnalyzer";
+import { useSelector } from "react-redux";
 
 function Jobdescription() {
   const { id } = useParams();
@@ -18,6 +20,7 @@ function Jobdescription() {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
+  const { user } = useSelector(state => state.auth);
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -256,6 +259,13 @@ function Jobdescription() {
               </ul>
             </Section>
           )}
+          
+
+          {user?.role === "student" && (
+  <Section title="🤖 AI Resume Analyzer">
+    <ResumeAnalyzer jobId={job._id} />
+  </Section>
+)}
 
           {/* ── Details grid ── */}
           <Section title="Job Details">
