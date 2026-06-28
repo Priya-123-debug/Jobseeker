@@ -7,7 +7,7 @@ import useGetAppliedJobs from "../hooks/useGetAppliedJobs";
 import { setAppliedJobs } from "../redux/appliedJobsSlice";
 import { JOB_API_END_POINT, APPLICATION_API_END_POINT } from "../utilis/constant";
 import ResumeAnalyzer from "./ResumeAnalyzer";
-import { useSelector } from "react-redux";
+
 
 function Jobdescription() {
   const { id } = useParams();
@@ -259,7 +259,7 @@ function Jobdescription() {
               </ul>
             </Section>
           )}
-          
+
 
           {user?.role === "student" && (
   <Section title="🤖 AI Resume Analyzer">
