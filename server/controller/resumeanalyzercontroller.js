@@ -31,13 +31,22 @@ export const analyzeResume = async (req, res) => {
 
     // 3. Fetch resume PDF from Cloudinary as base64
     const pdfResponse = await fetch(user.profile.resume);
+
+    //  Check if PDF fetch failed
+    if (!pdfResponse.ok) {
+      return res.status(400).json({
+        success: false,
+        message: "Failed to fetch resume from Cloudinary"
+      });
+    }
+
     const pdfBuffer = await pdfResponse.arrayBuffer();
     const base64Pdf = Buffer.from(pdfBuffer).toString("base64");
 
-    // 4. Send to Gemini AI with PDF
     const prompt = `You are a professional resume analyzer. Analyze this resume against the job description below.
 Respond ONLY with valid JSON, no markdown, no extra text.
 
+Example format:
 {
   "matchScore": 85,
   "skillsFound": ["React", "Node.js", "MongoDB"],
@@ -54,29 +63,48 @@ Job Description: ${job.description}
 Experience Required: ${job.experience} years
 `;
 
+    //  Correct syntax for @google/genai package
     const response = await genAI.models.generateContent({
       model: "gemini-2.0-flash",
       contents: [
         {
+          role: "user",                      //  role is required
           parts: [
-            { text: prompt },
             {
               inlineData: {
                 mimeType: "application/pdf",
                 data: base64Pdf
               }
-            }
+            },
+            { text: prompt }                 // text must come AFTER inlineData
           ]
         }
       ]
     });
 
-    const rawText =
-      response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    //  Correct way to extract text from @google/genai response
+    const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    // 5. Parse JSON
+    if (!rawText) {
+      return res.status(500).json({
+        success: false,
+        message: "Gemini returned empty response"
+      });
+    }
+
+    // 5. Parse JSON — remove markdown if Gemini wraps it anyway
     const clean = rawText.replace(/```json|```/g, "").trim();
-    const analysis = JSON.parse(clean);
+
+    let analysis;
+    try {
+      analysis = JSON.parse(clean);
+    } catch (parseErr) {
+      console.error("JSON parse failed:", clean);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to parse AI response"
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -84,10 +112,10 @@ Experience Required: ${job.experience} years
     });
 
   } catch (err) {
-    console.error("Resume analyzer error:", err);
+    console.error("Resume analyzer error:", err.message); //  log err.message not full err
     return res.status(500).json({
       success: false,
-      message: "Failed to analyze resume"
+      message: err.message || "Failed to analyze resume"  // return actual error message
     });
   }
 };
