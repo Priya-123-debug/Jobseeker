@@ -363,17 +363,14 @@ export const updateprofile = async (req, res) => {
     const { fullname, email, phoneNumber, bio, skills } = req.body;
     const userId = req.id;
 
-    //  Use req.files (from multiUpload) instead of req.file
     const profileImageFile = req.files?.profileImage?.[0];
     const resumeFile       = req.files?.resume?.[0];
 
-    //  Find user first before doing anything
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    //  Update basic fields
     if (fullname)    user.fullname    = fullname;
     if (email)       user.email       = email.toLowerCase();
     if (phoneNumber) user.phoneNumber = phoneNumber;
@@ -382,13 +379,11 @@ export const updateprofile = async (req, res) => {
 
     if (bio !== undefined) user.profile.bio = bio;
 
-    //  Fix: skills comes as JSON string from FormData, not an array
     if (skills) {
       try {
         const parsed = JSON.parse(skills);
         if (Array.isArray(parsed)) user.profile.skills = parsed;
       } catch {
-        // fallback if sent as plain comma-separated string
         user.profile.skills = skills
           .split(",")
           .map((s) => s.trim())
@@ -396,22 +391,27 @@ export const updateprofile = async (req, res) => {
       }
     }
 
-    //  Only upload profile image if a new one was sent
+    //  Upload profile image if provided
     if (profileImageFile) {
       const fileUri       = getDataUri(profileImageFile);
-      const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+      const cloudResponse = await cloudinary.uploader.upload(fileUri.content, {
+        folder: "profile_images",
+        resource_type: "image",
+      });
       user.profile.profileImage = cloudResponse.secure_url;
     }
 
-    //  Only upload resume if a new one was sent
+    //  Upload resume as raw so PDF URL is directly fetchable
     if (resumeFile) {
       const fileUri       = getDataUri(resumeFile);
-      const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+      const cloudResponse = await cloudinary.uploader.upload(fileUri.content, {
+        resource_type: "raw",   //  key fix
+        folder: "resumes",
+      });
       user.profile.resume             = cloudResponse.secure_url;
       user.profile.resumeoriginalname = resumeFile.originalname;
     }
 
-    //  markModified needed for nested profile object changes to save in MongoDB
     user.markModified("profile");
     await user.save();
 

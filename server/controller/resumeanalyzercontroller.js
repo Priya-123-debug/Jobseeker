@@ -11,7 +11,9 @@ export const analyzeResume = async (req, res) => {
     const userId = req.id;
     const { jobId } = req.body;
 
-    // 1. Get user with resume
+    console.log("userId:", userId);
+    console.log("jobId:", jobId);
+
     const user = await User.findById(userId);
     if (!user?.profile?.resume) {
       return res.status(400).json({
@@ -20,7 +22,8 @@ export const analyzeResume = async (req, res) => {
       });
     }
 
-    // 2. Get job details
+    console.log("resume url:", user.profile.resume);
+
     const job = await Job.findById(jobId).populate("company", "name");
     if (!job) {
       return res.status(404).json({
@@ -29,19 +32,62 @@ export const analyzeResume = async (req, res) => {
       });
     }
 
-    // 3. Fetch resume PDF from Cloudinary as base64
-    const pdfResponse = await fetch(user.profile.resume);
+    let base64Pdf;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
 
-    //  Check if PDF fetch failed
-    if (!pdfResponse.ok) {
-      return res.status(400).json({
-        success: false,
-        message: "Failed to fetch resume from Cloudinary"
+      const pdfResponse = await fetch(user.profile.resume, {
+        signal: controller.signal,
+        headers: {
+          "Accept": "application/pdf,*/*",
+          "User-Agent": "Mozilla/5.0"
+        }
       });
+
+      clearTimeout(timeout);
+
+      console.log("PDF fetch status:", pdfResponse.status);
+
+      if (!pdfResponse.ok) {
+        throw new Error(`PDF fetch failed: ${pdfResponse.status}`);
+      }
+
+      const pdfBuffer = await pdfResponse.arrayBuffer();
+      base64Pdf = Buffer.from(pdfBuffer).toString("base64");
+
+      console.log("base64 length:", base64Pdf.length);
+
+    } catch (fetchErr) {
+      console.error("PDF fetch error:", fetchErr.message);
+
+      const fixedUrl = user.profile.resume
+        .replace("/image/upload/", "/raw/upload/")
+        .replace("/auto/upload/", "/raw/upload/");
+
+      console.log("trying fixed URL:", fixedUrl);
+
+      const retryResponse = await fetch(fixedUrl, {
+        headers: { "User-Agent": "Mozilla/5.0" }
+      });
+
+      if (!retryResponse.ok) {
+        return res.status(400).json({
+          success: false,
+          message: "Could not fetch resume. Please re-upload your resume from your profile."
+        });
+      }
+
+      const pdfBuffer = await retryResponse.arrayBuffer();
+      base64Pdf = Buffer.from(pdfBuffer).toString("base64");
     }
 
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const base64Pdf = Buffer.from(pdfBuffer).toString("base64");
+    if (!base64Pdf || base64Pdf.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Resume PDF is empty. Please re-upload your resume."
+      });
+    }
 
     const prompt = `You are a professional resume analyzer. Analyze this resume against the job description below.
 Respond ONLY with valid JSON, no markdown, no extra text.
@@ -63,12 +109,11 @@ Job Description: ${job.description}
 Experience Required: ${job.experience} years
 `;
 
-    //  Correct syntax for @google/genai package
     const response = await genAI.models.generateContent({
       model: "gemini-2.0-flash",
       contents: [
         {
-          role: "user",                      //  role is required
+          role: "user",
           parts: [
             {
               inlineData: {
@@ -76,14 +121,15 @@ Experience Required: ${job.experience} years
                 data: base64Pdf
               }
             },
-            { text: prompt }                 // text must come AFTER inlineData
+            { text: prompt }
           ]
         }
       ]
     });
 
-    //  Correct way to extract text from @google/genai response
     const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    console.log("Gemini raw response:", rawText);
 
     if (!rawText) {
       return res.status(500).json({
@@ -92,7 +138,6 @@ Experience Required: ${job.experience} years
       });
     }
 
-    // 5. Parse JSON — remove markdown if Gemini wraps it anyway
     const clean = rawText.replace(/```json|```/g, "").trim();
 
     let analysis;
@@ -112,10 +157,10 @@ Experience Required: ${job.experience} years
     });
 
   } catch (err) {
-    console.error("Resume analyzer error:", err.message); //  log err.message not full err
+    console.error("Resume analyzer error:", err.message);
     return res.status(500).json({
       success: false,
-      message: err.message || "Failed to analyze resume"  // return actual error message
+      message: err.message || "Failed to analyze resume"
     });
   }
 };

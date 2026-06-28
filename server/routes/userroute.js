@@ -1,26 +1,28 @@
 import express from "express";
 import {
-  login, register, updateprofile, logout,
-  getMe, sendOtp, verifyOtp, resetPassword
+  login,
+  register,
+  updateprofile,
+  logout,
+  getMe,
+  sendOtp,
+  verifyOtp,
+  resetPassword
 } from "../controller/usercontroller.js";
 import isAuthenciated from "../middleware/isAuthenciated.js";
-import { otpLimiter, loginLimiter } from "../middleware/ratelimit.js";
-import { singleUpload, resumeUpload, multiUpload } from "../middleware/multer.js";
+import { singleUpload, multiUpload } from "../middleware/multer.js";
 
-const router = express.Router(); // ✅ declare BEFORE using router
+const router = express.Router();
 
-// Auth routes
-router.post("/register", singleUpload, register);         // profile image only
-router.post("/login", loginLimiter, login);
+router.post("/register", singleUpload, register);
+router.post("/login", login);
 router.get("/logout", isAuthenciated, logout);
 
-// Profile routes
 router.get("/me", isAuthenciated, getMe);
-router.put("/profile/update", isAuthenciated, multiUpload, updateprofile); // profile image + resume
+router.put("/profile/update", isAuthenciated, multiUpload, updateprofile);
 
-// OTP routes
-router.post("/send-otp", otpLimiter, sendOtp);
-router.post("/verify-otp", otpLimiter, verifyOtp);
+router.post("/send-otp", sendOtp);
+router.post("/verify-otp", verifyOtp);
 router.post("/reset-password", resetPassword);
 
 export default router;
