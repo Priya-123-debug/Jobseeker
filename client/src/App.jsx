@@ -13,6 +13,8 @@ import Profile from "./components/Profile.jsx";
 import Jobdescription from "./components/Jobdescription.jsx"
 import { useDispatch } from "react-redux";
 import axios from "axios";
+axios.defaults.withCredentials = true;
+axios.defaults.baseURL = "https://jobseeker-jqt2.onrender.com";
 import { setUser } from "./redux/authSlice";
 import { USER_API_END_POINT } from "./utilis/constant";
 import { useEffect } from "react";
