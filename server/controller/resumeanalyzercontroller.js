@@ -1,11 +1,18 @@
+import Groq from "groq-sdk";
+import pdfParse from "pdf-parse/lib/pdf-parse.js";
 import User from "../Model/usermodel.js";
 import Job from "../Model/jobmodel.js";
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
+});
 
 export const analyzeResume = async (req, res) => {
   try {
     const userId = req.id;
     const { jobId } = req.body;
 
+    // 1. Get user with resume
     const user = await User.findById(userId);
     if (!user?.profile?.resume) {
       return res.status(400).json({
@@ -14,6 +21,7 @@ export const analyzeResume = async (req, res) => {
       });
     }
 
+    // 2. Get job details
     const job = await Job.findById(jobId).populate("company", "name");
     if (!job) {
       return res.status(404).json({
@@ -22,12 +30,26 @@ export const analyzeResume = async (req, res) => {
       });
     }
 
-    // Fetch resume PDF
+    // 3. Fetch PDF from Cloudinary
     const pdfResponse = await fetch(user.profile.resume);
     const pdfBuffer = await pdfResponse.arrayBuffer();
-    const base64Pdf = Buffer.from(pdfBuffer).toString("base64");
+    const buffer = Buffer.from(pdfBuffer);
 
-    const prompt = `You are a professional resume analyzer. Analyze this resume against the job description below.
+    // 4. Extract text from PDF
+    const pdfData = await pdfParse(buffer);
+    const resumeText = pdfData.text;
+
+    console.log("Resume text length:", resumeText.length);
+
+    if (!resumeText || resumeText.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Could not extract text from resume. Please re-upload your resume."
+      });
+    }
+
+    // 5. Send to Groq AI
+    const prompt = `You are a professional resume analyzer. Analyze this resume against the job description.
 Respond ONLY with valid JSON, no markdown, no extra text.
 
 {
@@ -44,43 +66,34 @@ Job Title: ${job.title}
 Job Requirements: ${job.requirements.join(", ")}
 Job Description: ${job.description}
 Experience Required: ${job.experience} years
+
+Resume Text:
+${resumeText.slice(0, 3000)}
 `;
 
-    // Use REST API directly — most stable approach
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  inline_data: {
-                    mime_type: "application/pdf",
-                    data: base64Pdf
-                  }
-                },
-                { text: prompt }
-              ]
-            }
-          ]
-        })
-      }
-    );
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 1000
+    });
 
-    const data = await response.json();
-    console.log("Gemini response:", JSON.stringify(data));
+    const rawText = completion.choices[0]?.message?.content;
+    console.log("Groq response:", rawText);
 
-    if (data.error) {
+    if (!rawText) {
       return res.status(500).json({
         success: false,
-        message: data.error.message
+        message: "AI returned empty response"
       });
     }
 
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    // 6. Parse JSON
     const clean = rawText.replace(/```json|```/g, "").trim();
     const analysis = JSON.parse(clean);
 
