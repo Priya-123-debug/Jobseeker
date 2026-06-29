@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import pdfParse from "pdf-parse/lib/pdf-parse.js";
+import pdfParse from "pdf-parse";
 import User from "../Model/usermodel.js";
 import Job from "../Model/jobmodel.js";
 
