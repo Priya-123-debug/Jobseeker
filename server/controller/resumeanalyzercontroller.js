@@ -1,8 +1,3 @@
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const pdfParseModule = require("pdf-parse");
-const pdfParse = pdfParseModule.default || pdfParseModule;
-
 import Groq from "groq-sdk";
 import User from "../Model/usermodel.js";
 import Job from "../Model/jobmodel.js";
@@ -10,6 +5,22 @@ import Job from "../Model/jobmodel.js";
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
+
+// Extract text from PDF using simple buffer reading
+const extractTextFromPdf = async (buffer) => {
+  try {
+    // Convert buffer to string and extract readable text
+    const text = buffer.toString("utf-8", 0, buffer.length);
+    // Extract readable ASCII text
+    const readable = text.replace(/[^\x20-\x7E\n\r\t]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return readable;
+  } catch (err) {
+    return "";
+  }
+};
+
 export const analyzeResume = async (req, res) => {
   try {
     const userId = req.id;
@@ -38,18 +49,9 @@ export const analyzeResume = async (req, res) => {
     const pdfBuffer = await pdfResponse.arrayBuffer();
     const buffer = Buffer.from(pdfBuffer);
 
-    // 4. Extract text from PDF
-    const pdfData = await pdfParse(buffer);
-    const resumeText = pdfData.text;
-
+    // 4. Extract text
+    const resumeText = await extractTextFromPdf(buffer);
     console.log("Resume text length:", resumeText.length);
-
-    if (!resumeText || resumeText.trim().length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Could not extract text from resume. Please re-upload your resume."
-      });
-    }
 
     // 5. Send to Groq AI
     const prompt = `You are a professional resume analyzer. Analyze this resume against the job description.
