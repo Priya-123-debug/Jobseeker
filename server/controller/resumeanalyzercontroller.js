@@ -1,12 +1,14 @@
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
+
 import Groq from "groq-sdk";
-import pdfParse from "pdf-parse";
 import User from "../Model/usermodel.js";
 import Job from "../Model/jobmodel.js";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
-
 export const analyzeResume = async (req, res) => {
   try {
     const userId = req.id;
