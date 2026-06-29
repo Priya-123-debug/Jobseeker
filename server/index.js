@@ -20,6 +20,10 @@ dotenv.config();
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+// Add this before your other routes
+app.get("/api/v1/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
