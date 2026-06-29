@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import User from "../Model/usermodel.js";
 import Job from "../Model/jobmodel.js";
 
@@ -6,17 +7,20 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
 
-// Extract text from PDF using simple buffer reading
 const extractTextFromPdf = async (buffer) => {
   try {
-    // Convert buffer to string and extract readable text
-    const text = buffer.toString("utf-8", 0, buffer.length);
-    // Extract readable ASCII text
-    const readable = text.replace(/[^\x20-\x7E\n\r\t]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    return readable;
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+    const pdf = await loadingTask.promise;
+    let fullText = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map(item => item.str).join(" ") + "\n";
+    }
+    console.log("Extracted text preview:", fullText.slice(0, 300));
+    return fullText.trim();
   } catch (err) {
+    console.error("PDF parse error:", err.message);
     return "";
   }
 };
@@ -46,45 +50,52 @@ export const analyzeResume = async (req, res) => {
 
     // 3. Fetch PDF from Cloudinary
     const pdfResponse = await fetch(user.profile.resume);
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const buffer = Buffer.from(pdfBuffer);
+    if (!pdfResponse.ok) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch resume from Cloudinary"
+      });
+    }
+    const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
 
-    // 4. Extract text
-    const resumeText = await extractTextFromPdf(buffer);
+    // 4. Extract text properly using pdfjs-dist
+    const resumeText = await extractTextFromPdf(pdfBuffer);
     console.log("Resume text length:", resumeText.length);
 
-    // 5. Send to Groq AI
-    const prompt = `You are a professional resume analyzer. Analyze this resume against the job description.
-Respond ONLY with valid JSON, no markdown, no extra text.
+    if (!resumeText || resumeText.length < 50) {
+      return res.status(400).json({
+        success: false,
+        message: "Could not extract text from resume. Please re-upload a text-based PDF."
+      });
+    }
 
+    // 5. Send to Groq AI
+    const prompt = `You are a professional ATS resume analyzer. Analyze the resume against the job description below.
+Respond ONLY with a valid JSON object — no markdown, no explanation, no extra text.
+
+Required JSON shape:
 {
-  "matchScore": 85,
-  "skillsFound": ["React", "Node.js", "MongoDB"],
-  "missingSkills": ["TypeScript", "Docker"],
-  "experienceLevel": "Mid Level",
-  "suggestions": ["Add more project details", "Mention team size"],
-  "shouldApply": true,
-  "summary": "Strong candidate with good frontend skills"
+  "matchScore": <number 0-100>,
+  "skillsFound": [<skills present in resume that match job requirements>],
+  "missingSkills": [<required skills not found in resume>],
+  "experienceLevel": "<Fresher | Junior | Mid Level | Senior>",
+  "suggestions": [<2-4 actionable improvement tips>],
+  "shouldApply": <true | false>,
+  "summary": "<2-3 sentence honest assessment>"
 }
 
 Job Title: ${job.title}
-Job Requirements: ${job.requirements.join(", ")}
+Required Skills: ${job.requirements.join(", ")}
 Job Description: ${job.description}
 Experience Required: ${job.experience} years
 
-Resume Text:
-${resumeText.slice(0, 3000)}
-`;
+Resume:
+${resumeText.slice(0, 4000)}`;
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      temperature: 0.3,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
       max_tokens: 1000
     });
 
@@ -98,9 +109,17 @@ ${resumeText.slice(0, 3000)}
       });
     }
 
-    // 6. Parse JSON
-    const clean = rawText.replace(/```json|```/g, "").trim();
-    const analysis = JSON.parse(clean);
+    // 6. Safely extract JSON even if model wraps in markdown
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error("No JSON found in response:", rawText);
+      return res.status(500).json({
+        success: false,
+        message: "AI response was not valid JSON"
+      });
+    }
+
+    const analysis = JSON.parse(jsonMatch[0]);
 
     return res.status(200).json({
       success: true,
