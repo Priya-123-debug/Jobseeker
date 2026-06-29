@@ -5,44 +5,40 @@ import toast from "react-hot-toast";
 import { updateApplicantStatus } from "../redux/applicantSlice";
 import { APPLICATION_API_END_POINT } from "../utilis/constant";
 
+const STATUS_OPTIONS = ["pending", "reviewing", "interviewing", "accepted", "rejected"];
+
+const STATUS_STYLES = {
+  accepted: "bg-green-100 text-green-700",
+  rejected: "bg-red-100 text-red-700",
+  pending: "bg-yellow-100 text-yellow-700",
+  reviewing: "bg-blue-100 text-blue-700",
+  interviewing: "bg-purple-100 text-purple-700",
+};
+
 function StatusBadge({ status }) {
-  const styles = {
-    accepted: "bg-green-100 text-green-700",
-    rejected: "bg-red-100 text-red-700",
-    pending: "bg-yellow-100 text-yellow-700",
-  };
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${styles[status] || styles.pending}`}>
+    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${STATUS_STYLES[status] || STATUS_STYLES.pending}`}>
       {status}
     </span>
   );
 }
 
-function ActionButtons({ app, loadingRows, handleStatus }) {
-  if (app.status !== "pending") {
-    return <span className="text-gray-400 text-xs">Action taken</span>;
-  }
+function StatusDropdown({ app, loadingRows, handleStatus }) {
   return (
-    <div className="flex gap-2">
-      <button
-        onClick={() => handleStatus(app._id, "accepted")}
-        disabled={loadingRows[app._id]}
-        className={`flex-1 sm:flex-none px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition active:scale-95 ${
-          loadingRows[app._id] ? "opacity-50 cursor-not-allowed" : ""
-        }`}
-      >
-        {loadingRows[app._id] ? "..." : "Accept"}
-      </button>
-      <button
-        onClick={() => handleStatus(app._id, "rejected")}
-        disabled={loadingRows[app._id]}
-        className={`flex-1 sm:flex-none px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium transition active:scale-95 ${
-          loadingRows[app._id] ? "opacity-50 cursor-not-allowed" : ""
-        }`}
-      >
-        {loadingRows[app._id] ? "..." : "Reject"}
-      </button>
-    </div>
+    <select
+      value={app.status}
+      disabled={loadingRows[app._id]}
+      onChange={(e) => handleStatus(app._id, e.target.value)}
+      className={`text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer transition
+        ${loadingRows[app._id] ? "opacity-50 cursor-not-allowed" : ""}
+        ${STATUS_STYLES[app.status] || STATUS_STYLES.pending}`}
+    >
+      {STATUS_OPTIONS.map((s) => (
+        <option key={s} value={s} className="bg-white text-gray-800 capitalize">
+          {s.charAt(0).toUpperCase() + s.slice(1)}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -69,7 +65,7 @@ function Applicantstable() {
         { withCredentials: true }
       );
       dispatch(updateApplicantStatus({ id, status: newStatus }));
-      toast.success(`Marked as ${newStatus}`);
+      toast.success(`Status updated to ${newStatus}`);
     } catch (err) {
       toast.error("Failed to update status");
     } finally {
@@ -89,7 +85,7 @@ function Applicantstable() {
               <th className="px-4 py-3 text-left">Phone</th>
               <th className="px-4 py-3 text-left">Applied Date</th>
               <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-center">Action</th>
+              <th className="px-4 py-3 text-center">Change Status</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -101,7 +97,7 @@ function Applicantstable() {
                 <td className="px-4 py-3 text-gray-500">{new Date(app.createdAt).toLocaleDateString()}</td>
                 <td className="px-4 py-3"><StatusBadge status={app.status} /></td>
                 <td className="px-4 py-3 text-center">
-                  <ActionButtons app={app} loadingRows={loadingRows} handleStatus={handleStatus} />
+                  <StatusDropdown app={app} loadingRows={loadingRows} handleStatus={handleStatus} />
                 </td>
               </tr>
             ))}
@@ -124,7 +120,10 @@ function Applicantstable() {
               <p>📞 {app.applicant?.phoneNumber || "—"}</p>
               <p>📅 Applied {new Date(app.createdAt).toLocaleDateString()}</p>
             </div>
-            <ActionButtons app={app} loadingRows={loadingRows} handleStatus={handleStatus} />
+            <div className="mt-2">
+              <label className="text-xs text-gray-500 mb-1 block">Update Status</label>
+              <StatusDropdown app={app} loadingRows={loadingRows} handleStatus={handleStatus} />
+            </div>
           </div>
         ))}
       </div>
