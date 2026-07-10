@@ -14,6 +14,10 @@ import {
 
 import Job from "../Model/jobmodel.js";
 
+// Words that signal the user is asking an INFO question, not searching for a job,
+// even if the word "job" appears in the message.
+const infoWords = ["type", "types", "kind", "kinds", "what", "tell", "explain", "list", "how", "does", "work"];
+
 const localIntent = (msg) => {
   const words = msg.toLowerCase().split(/[^a-z]+/).filter(Boolean);
 
@@ -25,18 +29,31 @@ const localIntent = (msg) => {
     return "GOODBYE";
   if (words.includes("status"))
     return "JOB_STATUS";
-  if (words.includes("job") || words.includes("jobs") || words.includes("vacancy") || words.includes("opening"))
+
+  const hasJobWord = words.includes("job") || words.includes("jobs") || words.includes("vacancy") || words.includes("opening");
+  const isInfoQuestion = infoWords.some(w => words.includes(w));
+
+  // Only fast-path to JOB_SEARCH if it mentions a job word AND isn't phrased as an info question.
+  if (hasJobWord && !isInfoQuestion)
     return "JOB_SEARCH";
+
   if (words.includes("company") || words.includes("companies"))
     return "COMPANY_INFO";
 
-  return "UNKNOWN";
+  return "UNKNOWN"; // falls through to AI classifier for nuance
 };
 
 // ⭐ Dynamic multi-filter search — location, company, and/or title, any combo
+// Title matching is word-by-word (AND) so "backend develop" matches "Backend Developer"
 const searchJobs = async ({ title, location, company: companyName }) => {
   const conditions = {};
-  if (title) conditions.title = { $regex: title, $options: "i" };
+
+  if (title) {
+    const titleWords = title.split(/\s+/).filter(Boolean);
+    if (titleWords.length) {
+      conditions.$and = titleWords.map(w => ({ title: { $regex: w, $options: "i" } }));
+    }
+  }
   if (location) conditions.location = { $regex: location, $options: "i" };
 
   let query = Job.find(conditions).populate("company", "name").select("title location Salary jobtype").limit(5);
@@ -94,7 +111,7 @@ const chatbotcontroller = async (req, res) => {
           const ai = await getIntentFromGemini(message);
           intent = ai.intent || "UNKNOWN";
         } catch (err) {
-          console.error("Gemini intent error:", err);
+          console.error("AI intent error:", err);
           intent = "UNKNOWN";
         }
       }
@@ -143,6 +160,8 @@ const chatbotcontroller = async (req, res) => {
           deleteSession(sessionId);
           break;
 
+        case "GENERAL_INFO":
+        case "LOCATION_INFO":
         default:
           try {
             reply = await getWebsiteAnswer(message);

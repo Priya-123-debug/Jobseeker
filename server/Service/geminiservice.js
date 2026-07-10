@@ -19,18 +19,22 @@ const generateWithFallback = async (prompt) => {
 export const getIntentFromGemini = async (message) => {
   try {
     const prompt = `
-Classify intent into ONE:
+Classify the user's message into ONE intent:
 
-GREETING
-JOB_SEARCH
-JOB_STATUS
-COMPANY_INFO
-LOCATION_INFO
-THANKS
-GOODBYE
-UNKNOWN
+GREETING - hello, hi, hey
+JOB_SEARCH - user wants to find/search for a specific job (mentions a role, title, location, or company they want)
+JOB_STATUS - user is asking about the status of an application they submitted
+COMPANY_INFO - user is asking about a SPECIFIC company, or wants the list of companies on the platform
+LOCATION_INFO - user is asking which locations/cities have jobs available
+GENERAL_INFO - user is asking what this website/platform is, how it works, what features it has, or general "how do I..." questions
+THANKS - user is thanking you
+GOODBYE - user is ending the conversation
+UNKNOWN - anything that doesn't clearly fit above
 
-Return JSON only, like {"intent": "JOB_SEARCH"}.
+Important: questions like "what job types are there", "tell me about job types", "how does this work",
+"what can you do" are GENERAL_INFO, NOT JOB_SEARCH.
+
+Return JSON only, no explanation, like {"intent": "JOB_SEARCH"}.
 
 Message: "${message}"
 `;
@@ -58,10 +62,15 @@ export const extractEntities = (message, known) => {
   found.location = known.locations.find(loc => msg.includes(loc.toLowerCase())) || null;
   found.company = known.companies.find(c => msg.includes(c.toLowerCase())) || null;
 
-  const stripWords = ["job", "jobs", "in", "at", "for", "show", "me", "find", "search", "openings", "opening",
+  const stripWords = [
+    "job", "jobs", "in", "at", "for", "show", "me", "find", "search",
+    "openings", "opening", "role", "roles", "available", "position", "positions",
+    "hiring", "want", "need", "looking", "currently", "now", "please", "kindly",
+    "ok", "okay", "can", "you", "is", "there", "any", "the", "a", "an",
     ...(found.location ? [found.location.toLowerCase()] : []),
-    ...(found.company ? [found.company.toLowerCase()] : [])];
-  const titleGuess = msg.split(/\s+/).filter(w => !stripWords.includes(w)).join(" ").trim();
+    ...(found.company ? [found.company.toLowerCase()] : []),
+  ];
+  const titleGuess = msg.split(/\s+/).filter(w => w && !stripWords.includes(w)).join(" ").trim();
   found.titleHint = titleGuess || null;
   return found;
 };
@@ -97,7 +106,7 @@ const buildLiveContext = async (question) => {
     parts.push(`Companies on the platform: ${companies.map(c => c.name).join(", ") || "None yet"}`);
   }
 
-  if (q.includes("job") || q.includes("hiring") || q.includes("opening") || q.includes("vacan")) {
+  if (q.includes("job") || q.includes("hiring") || q.includes("opening") || q.includes("vacan") || q.includes("type")) {
     const recentJobs = await Job.find()
       .populate("company", "name")
       .select("title location Salary jobtype experience")
@@ -107,6 +116,9 @@ const buildLiveContext = async (question) => {
       .map(j => `${j.title} at ${j.company?.name || "Unknown"} — ${j.location}, ₹${j.Salary}, ${j.jobtype}, ${j.experience} yrs exp`)
       .join("\n");
     parts.push(`Recent job openings:\n${jobList || "No jobs posted yet"}`);
+
+    const jobTypes = await Job.distinct("jobtype");
+    parts.push(`Job types available: ${jobTypes.filter(Boolean).join(", ") || "None listed"}`);
   }
 
   if (q.includes("location") || q.includes("city") || q.includes("where")) {
