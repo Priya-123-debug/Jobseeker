@@ -1,38 +1,19 @@
-import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import Job from "../Model/jobmodel.js";
 import { company } from "../Model/company.js";
-
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const groq = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
   baseURL: "https://api.groq.com/openai/v1",
 });
 
-// ⭐ Tries Gemini first, falls back to Groq automatically if Gemini fails
+// Single-provider generation via Groq
 const generateWithFallback = async (prompt) => {
-  try {
-    const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-    const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (text) return text;
-    throw new Error("Empty Gemini response");
-  } catch (err) {
-    console.warn("Gemini failed, falling back to Groq:", err.message);
-    try {
-      const groqResponse = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: prompt }],
-      });
-      return groqResponse.choices[0].message.content;
-    } catch (groqErr) {
-      console.error("Groq also failed:", groqErr.message);
-      throw groqErr;
-    }
-  }
+  const response = await groq.chat.completions.create({
+    model: "openai/gpt-oss-120b",
+    messages: [{ role: "user", content: prompt }],
+  });
+  return response.choices[0].message.content;
 };
 
 export const getIntentFromGemini = async (message) => {
@@ -169,7 +150,7 @@ ${question}
 `;
     return await generateWithFallback(prompt);
   } catch (err) {
-    console.error("getWebsiteAnswer error (both providers failed):", err);
+    console.error("getWebsiteAnswer error:", err);
     return "I'm having trouble connecting right now — please try again in a moment.";
   }
 };
