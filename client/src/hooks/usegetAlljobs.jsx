@@ -10,24 +10,25 @@ const usegetAlljobs = ({
   industry = "",
   minSalary = 0,
   maxSalary = 0,
+  keyword = "",
 } = {}) => {
   const dispatch = useDispatch();
-  const { user } = useSelector((store) => store.auth); // add this line
+  const { user } = useSelector((store) => store.auth);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
-      dispatch(setAllJobs([])); // clear any stale jobs immediately
+      dispatch(setAllJobs([]));
       setLoading(false);
-      return; // skip the fetch entirely for guests
+      return;
     }
 
     const fetchAllJobs = async () => {
       try {
         setLoading(true);
         const res = await axios.get(
-          `${JOB_API_END_POINT}/get?page=${page}&location=${location}&industry=${industry}&minSalary=${minSalary}&maxSalary=${maxSalary}`,
+          `${JOB_API_END_POINT}/get?page=${page}&location=${location}&industry=${industry}&minSalary=${minSalary}&maxSalary=${maxSalary}&keyword=${keyword}`,
           { withCredentials: true }
         );
         if (res.data.success) {
@@ -42,7 +43,7 @@ const usegetAlljobs = ({
     };
 
     fetchAllJobs();
-  }, [dispatch, user, page, location, industry, minSalary, maxSalary]);
+  }, [dispatch, user, page, location, industry, minSalary, maxSalary, keyword]);
 
   return { totalPages, loading };
 };

@@ -193,3 +193,33 @@ export const getRecruiterStats = async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to fetch stats" });
   }
 };
+
+
+
+
+export const getJobFilterOptions = async (req, res) => {
+  try {
+    const locations = await Job.distinct("location");
+    const industries = await Job.distinct("industry");
+
+    const salaryStats = await Job.aggregate([
+      {
+        $group: {
+          _id: null,
+          minSalary: { $min: "$Salary" },
+          maxSalary: { $max: "$Salary" },
+        },
+      },
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      locations: locations.filter((loc) => loc && loc.trim() !== ""),
+      industries: industries.filter((ind) => ind && ind.trim() !== ""),
+      salaryRange: salaryStats[0] || { minSalary: 0, maxSalary: 0 },
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ success: false, message: "Failed to fetch filter options" });
+  }
+};
