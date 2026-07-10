@@ -14,6 +14,7 @@ export const postjob = async (req, res) => {
       experience,
       position,
       company,
+      industry, // ← add this
     } = req.body;
     const userId = req.id;
     if (
@@ -25,7 +26,8 @@ export const postjob = async (req, res) => {
       !jobtype ||
       !experience ||
       !position ||
-      !company
+      !company ||
+      !industry // ← validate it too
     ) {
       return res.status(400).json({
         message: "something is missing",
@@ -39,8 +41,9 @@ export const postjob = async (req, res) => {
       Salary: Number(Salary),
       location,
       jobtype,
-			position,
+      position,
       experience,
+      industry, // ← save it
       company: company,
       created_by: userId,
     });
@@ -51,6 +54,7 @@ export const postjob = async (req, res) => {
     });
   } catch (err) {
     console.log(err);
+    return res.status(500).json({ success: false, message: "Failed to create job" });
   }
 };
 export const getAlljobs = async (req, res) => {
