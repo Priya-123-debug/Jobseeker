@@ -25,7 +25,8 @@ Return JSON only, like {"intent": "JOB_SEARCH"}.
 Message: "${message}"
 `;
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash", 
+      
       contents: prompt
     });
     const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
