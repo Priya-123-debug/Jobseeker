@@ -61,7 +61,7 @@ export const getAlljobs = async (req, res) => {
   try {
     const keyword = req.query.keyword || "";
     const location = req.query.location || "";
-    const industry = req.query.industry || "";
+    const companyId = req.query.company || "";   // ← was industry
     const minSalary = Number(req.query.minSalary) || 0;
     const maxSalary = Number(req.query.maxSalary) || 0;
     const page = Number(req.query.page) || 1;
@@ -70,7 +70,6 @@ export const getAlljobs = async (req, res) => {
 
     const filterConditions = {};
 
-    // keyword now searches across title, location, AND requirements
     if (keyword) {
       filterConditions.$or = [
         { title: { $regex: keyword, $options: "i" } },
@@ -79,12 +78,12 @@ export const getAlljobs = async (req, res) => {
       ];
     }
 
-    // location/industry filters stay independent (from the sidebar)
     if (location) {
       filterConditions.location = { $regex: location, $options: "i" };
     }
-    if (industry) {
-      filterConditions.industry = { $regex: industry, $options: "i" };
+
+    if (companyId) {
+      filterConditions.company = companyId; // exact match on ObjectId
     }
 
     if (minSalary > 0 || maxSalary > 0) {
@@ -216,7 +215,10 @@ export const getRecruiterStats = async (req, res) => {
 export const getJobFilterOptions = async (req, res) => {
   try {
     const locations = await Job.distinct("location");
-    const industries = await Job.distinct("industry");
+
+    // get distinct companies actually used in jobs, with their names
+    const companyIds = await Job.distinct("company");
+    const companies = await company.find({ _id: { $in: companyIds } }).select("name");
 
     const salaryStats = await Job.aggregate([
       {
@@ -231,7 +233,7 @@ export const getJobFilterOptions = async (req, res) => {
     return res.status(200).json({
       success: true,
       locations: locations.filter((loc) => loc && loc.trim() !== ""),
-      industries: industries.filter((ind) => ind && ind.trim() !== ""),
+      companies: companies.map((c) => ({ id: c._id, name: c.name })),
       salaryRange: salaryStats[0] || { minSalary: 0, maxSalary: 0 },
     });
   } catch (err) {

@@ -7,7 +7,7 @@ const useGetFilterOptions = () => {
   const { user } = useSelector((store) => store.auth);
   const [options, setOptions] = useState({
     locations: [],
-    industries: [],
+    companies: [],
     salaryRange: { minSalary: 0, maxSalary: 0 },
   });
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,7 @@ const useGetFilterOptions = () => {
         if (res.data.success) {
           setOptions({
             locations: res.data.locations,
-            industries: res.data.industries,
+            companies: res.data.companies, // [{ id, name }]
             salaryRange: res.data.salaryRange,
           });
         }

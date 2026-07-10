@@ -1,17 +1,14 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import BookmarkButton from "./BookmarkButton"; 
+import BookmarkButton from "./BookmarkButton";
 
-const timeAgo = (dateString) => {
-  if (!dateString) return "Unknown";
-  const now = new Date();
-  const postedDate = new Date(dateString);
-  const diff = Math.floor((now - postedDate) / 1000);
-
-  if (diff < 60) return `${diff} sec ago`;
+const timeAgo = (date) => {
+  if (!date) return "Recently";
+  const diff = Math.floor((Date.now() - new Date(date)) / 1000);
+  if (diff < 60) return "Just now";
   if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} hour ago`;
-  return `${Math.floor(diff / 86400)} day ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hrs ago`;
+  return `${Math.floor(diff / 86400)} days ago`;
 };
 
 function Job({ job }) {
@@ -44,17 +41,18 @@ function Job({ job }) {
               {job.title}
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 truncate">
-              {job.company?.name} • {job.location}
+              {job.company?.name || "Unknown Company"} • {job.location || "Remote"}
             </p>
           </div>
         </div>
 
-        {/* Posted Time */}
-        <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
-          {timeAgo(job.createdAt)}
-        </span>
-         <BookmarkButton jobId={job._id} />
-
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Posted Time */}
+          <span className="text-xs text-gray-400 whitespace-nowrap">
+            {timeAgo(job.createdAt)}
+          </span>
+          <BookmarkButton jobId={job._id} />
+        </div>
       </div>
 
       {/* Description */}
@@ -70,17 +68,12 @@ function Job({ job }) {
         <span className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded-full">
           {job.position}
         </span>
-        {job.industry && (
-          <span className="text-xs bg-pink-100 text-pink-700 px-3 py-1 rounded-full">
-            {job.industry}
-          </span>
-        )}
       </div>
 
       {/* Footer */}
       <div className="mt-4 sm:mt-5 flex items-center justify-between gap-2">
         <span className="font-semibold text-indigo-600 text-sm sm:text-base truncate">
-          ₹{job.Salary?.toLocaleString("en-IN")}
+          ₹{job.Salary?.toLocaleString("en-IN") || "Not disclosed"}
         </span>
 
         <button
@@ -89,7 +82,6 @@ function Job({ job }) {
         >
           Details
         </button>
-
       </div>
     </div>
   );

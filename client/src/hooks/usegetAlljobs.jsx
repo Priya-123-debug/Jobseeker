@@ -7,7 +7,7 @@ import { JOB_API_END_POINT } from "../utilis/constant";
 const usegetAlljobs = ({
   page = 1,
   location = "",
-  industry = "",
+  company = "",
   minSalary = 0,
   maxSalary = 0,
   keyword = "",
@@ -28,7 +28,7 @@ const usegetAlljobs = ({
       try {
         setLoading(true);
         const res = await axios.get(
-          `${JOB_API_END_POINT}/get?page=${page}&location=${location}&industry=${industry}&minSalary=${minSalary}&maxSalary=${maxSalary}&keyword=${keyword}`,
+          `${JOB_API_END_POINT}/get?page=${page}&location=${location}&company=${company}&minSalary=${minSalary}&maxSalary=${maxSalary}&keyword=${keyword}`,
           { withCredentials: true }
         );
         if (res.data.success) {
@@ -43,7 +43,7 @@ const usegetAlljobs = ({
     };
 
     fetchAllJobs();
-  }, [dispatch, user, page, location, industry, minSalary, maxSalary, keyword]);
+  }, [dispatch, user, page, location, company, minSalary, maxSalary, keyword]);
 
   return { totalPages, loading };
 };

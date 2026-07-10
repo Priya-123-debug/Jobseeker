@@ -18,6 +18,7 @@ function Jobs() {
     page: currentPage,
     location: filters.location || "",
     industry: filters.industry || "",
+    company: filters.company || "",
     minSalary: filters.minSalary || 0,
     maxSalary: filters.maxSalary || 0,
     keyword: activeKeyword,

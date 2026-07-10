@@ -11,11 +11,16 @@ const SALARY_BUCKETS = [
   { label: "20+ LPA", min: 2000000, max: 100000000 },
 ];
 
+// options: array of strings (locations) OR array of {id, name} (companies)
 function FilterSection({ title, options, name, selected, onChange, search, onSearchChange }) {
-  const filtered = useMemo(
-    () => options.filter((o) => o.toLowerCase().includes(search.toLowerCase())),
-    [options, search]
-  );
+  const isObjectOptions = options.length > 0 && typeof options[0] === "object";
+
+  const filtered = useMemo(() => {
+    if (isObjectOptions) {
+      return options.filter((o) => o.name.toLowerCase().includes(search.toLowerCase()));
+    }
+    return options.filter((o) => o.toLowerCase().includes(search.toLowerCase()));
+  }, [options, search, isObjectOptions]);
 
   return (
     <div className="border-b border-gray-100 pb-4 mb-4 last:border-0">
@@ -34,26 +39,30 @@ function FilterSection({ title, options, name, selected, onChange, search, onSea
         </div>
       )}
 
-      <div className="max-h-44 overflow-y-auto pr-1 space-y-0.5">
+      <div className="space-y-0.5">
         {filtered.length === 0 ? (
           <p className="text-xs text-gray-400 py-1">No matches</p>
         ) : (
-          filtered.map((opt) => (
-            <label
-              key={opt}
-              className="flex items-center gap-2.5 text-sm text-gray-600 cursor-pointer py-1 px-1.5 rounded-md hover:bg-gray-50 transition"
-            >
-              <input
-                type="radio"
-                name={name}
-                value={opt}
-                checked={selected === opt}
-                onChange={onChange}
-                className="accent-indigo-600 w-3.5 h-3.5"
-              />
-              {opt}
-            </label>
-          ))
+          filtered.map((opt) => {
+            const value = isObjectOptions ? opt.id : opt;
+            const label = isObjectOptions ? opt.name : opt;
+            return (
+              <label
+                key={value}
+                className="flex items-center gap-2.5 text-sm text-gray-600 cursor-pointer py-1 px-1.5 rounded-md hover:bg-gray-50 transition"
+              >
+                <input
+                  type="radio"
+                  name={name}
+                  value={value}
+                  checked={selected === value}
+                  onChange={onChange}
+                  className="accent-indigo-600 w-3.5 h-3.5"
+                />
+                {label}
+              </label>
+            );
+          })
         )}
       </div>
     </div>
@@ -63,16 +72,16 @@ function FilterSection({ title, options, name, selected, onChange, search, onSea
 function FilterCard() {
   const dispatch = useDispatch();
   const reduxFilters = useSelector((state) => state.job.filters);
-  const { locations, industries, loading } = useGetFilterOptions();
+  const { locations, companies, loading } = useGetFilterOptions();
 
   const [filters, setFilters] = useState({
     location: reduxFilters.location || "",
-    industry: reduxFilters.industry || "",
+    company: reduxFilters.company || "",
     salary: reduxFilters.salary || "",
   });
 
   const [locationSearch, setLocationSearch] = useState("");
-  const [industrySearch, setIndustrySearch] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -92,14 +101,14 @@ function FilterCard() {
   };
 
   const handleClear = () => {
-    const reset = { location: "", industry: "", salary: "", minSalary: 0, maxSalary: 0 };
+    const reset = { location: "", company: "", salary: "", minSalary: 0, maxSalary: 0 };
     setFilters(reset);
     setLocationSearch("");
-    setIndustrySearch("");
+    setCompanySearch("");
     dispatch(setJobFilters(reset));
   };
 
-  const activeCount = [filters.location, filters.industry, filters.salary].filter(Boolean).length;
+  const activeCount = [filters.location, filters.company, filters.salary].filter(Boolean).length;
 
   if (loading) {
     return (
@@ -140,13 +149,13 @@ function FilterCard() {
       />
 
       <FilterSection
-        title="Industry"
-        options={industries}
-        name="industry"
-        selected={filters.industry}
+        title="Company"
+        options={companies}
+        name="company"
+        selected={filters.company}
         onChange={handleChange}
-        search={industrySearch}
-        onSearchChange={setIndustrySearch}
+        search={companySearch}
+        onSearchChange={setCompanySearch}
       />
 
       <div>
