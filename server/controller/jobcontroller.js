@@ -62,19 +62,31 @@ export const getAlljobs = async (req, res) => {
     const keyword = req.query.keyword || "";
     const location = req.query.location || "";
     const industry = req.query.industry || "";
-    const minSalary = Number(req.query.minSalary) || 0;  // ← fix
-    const maxSalary = Number(req.query.maxSalary) || 0;  // ← fix
+    const minSalary = Number(req.query.minSalary) || 0;
+    const maxSalary = Number(req.query.maxSalary) || 0;
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 12;
     const skip = (page - 1) * limit;
 
-    const filterConditions = {
-      title: { $regex: keyword, $options: "i" },
-      location: { $regex: location, $options: "i" },
-      industry: { $regex: industry, $options: "i" },
-    };
+    const filterConditions = {};
 
-    // ← add salary filter
+    // keyword now searches across title, location, AND requirements
+    if (keyword) {
+      filterConditions.$or = [
+        { title: { $regex: keyword, $options: "i" } },
+        { location: { $regex: keyword, $options: "i" } },
+        { requirements: { $regex: keyword, $options: "i" } },
+      ];
+    }
+
+    // location/industry filters stay independent (from the sidebar)
+    if (location) {
+      filterConditions.location = { $regex: location, $options: "i" };
+    }
+    if (industry) {
+      filterConditions.industry = { $regex: industry, $options: "i" };
+    }
+
     if (minSalary > 0 || maxSalary > 0) {
       filterConditions.Salary = {};
       if (minSalary > 0) filterConditions.Salary.$gte = minSalary;
