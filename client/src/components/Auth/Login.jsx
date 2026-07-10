@@ -51,6 +51,39 @@ function Login() {
     }
   };
 
+
+  const demoLogin = async (role) => {
+  const demoCredentials =
+    role === "recruiter"
+      ? { email: "demo.recruiter@paridhi.test", password: "Demo@1234", role: "recruiter" }
+      : { email: "demo.student@paridhi.test", password: "Demo@1234", role: "student" };
+
+  try {
+    dispatch(setLoading(true));
+    const res = await axios.post(`${USER_API_END_POINT}/login`, demoCredentials, {
+      withCredentials: true,
+    });
+    if (res.data?.success) {
+      const user = res.data.user;
+      const normalizedUser = {
+        ...user,
+        profile: {
+          profileImage: user?.profile?.profileImage || "",
+          bio: user?.profile?.bio || "",
+          skills: user?.profile?.skills || [],
+        },
+      };
+      dispatch(setUser(normalizedUser));
+      toast.success("Logged in with demo account");
+      navigate(normalizedUser.role === "recruiter" ? "/admin/companies" : "/");
+    }
+  } catch (err) {
+    toast.error(err.response?.data?.message || "Demo login failed");
+  } finally {
+    dispatch(setLoading(false));
+  }
+};
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 to-orange-500 px-4 py-10">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 sm:p-10">
@@ -160,6 +193,33 @@ function Login() {
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
+
+        // seed account
+<div className="mt-6 pt-6 border-t border-gray-200">
+  <p className="text-center text-xs text-gray-500 mb-3">
+    Just exploring? Try it instantly:
+  </p>
+  <div className="flex gap-3">
+    <button
+      type="button"
+      onClick={() => demoLogin("student")}
+      disabled={loading}
+      className="flex-1 py-2.5 rounded-xl border border-purple-300 text-purple-700 text-sm font-medium hover:bg-purple-50 transition disabled:opacity-50"
+    >
+      Try as Job Seeker
+    </button>
+    <button
+      type="button"
+      onClick={() => demoLogin("recruiter")}
+      disabled={loading}
+      className="flex-1 py-2.5 rounded-xl border border-orange-300 text-orange-700 text-sm font-medium hover:bg-orange-50 transition disabled:opacity-50"
+    >
+      Try as Recruiter
+    </button>
+  </div>
+</div>
+
+
 
         <p className="text-center text-sm text-gray-600 mt-6">
           Don't have an account?{" "}
