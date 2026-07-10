@@ -194,7 +194,7 @@ function Login() {
           </button>
         </form>
 
-        // seed account
+    
 <div className="mt-6 pt-6 border-t border-gray-200">
   <p className="text-center text-xs text-gray-500 mb-3">
     Just exploring? Try it instantly:
