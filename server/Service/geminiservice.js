@@ -1,10 +1,39 @@
 import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import Job from "../Model/jobmodel.js";
 import { company } from "../Model/company.js";
 
-const genAI = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 });
+
+// ⭐ Tries Gemini first, falls back to Groq automatically if Gemini fails
+const generateWithFallback = async (prompt) => {
+  try {
+    const response = await genAI.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) return text;
+    throw new Error("Empty Gemini response");
+  } catch (err) {
+    console.warn("Gemini failed, falling back to Groq:", err.message);
+    try {
+      const groqResponse = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+      });
+      return groqResponse.choices[0].message.content;
+    } catch (groqErr) {
+      console.error("Groq also failed:", groqErr.message);
+      throw groqErr;
+    }
+  }
+};
 
 export const getIntentFromGemini = async (message) => {
   try {
@@ -24,19 +53,13 @@ Return JSON only, like {"intent": "JOB_SEARCH"}.
 
 Message: "${message}"
 `;
-    const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash", 
-      
-      contents: prompt
-    });
-    const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    return JSON.parse(text.trim());
+    const text = await generateWithFallback(prompt);
+    return JSON.parse(text.trim().replace(/```json|```/g, ""));
   } catch {
     return { intent: "UNKNOWN" };
   }
 };
 
-//  Pull real vocabulary from the DB so entity matching adapts as data grows
 export const getKnownEntities = async () => {
   const [locations, companies] = await Promise.all([
     Job.distinct("location"),
@@ -48,22 +71,16 @@ export const getKnownEntities = async () => {
   };
 };
 
-//  Extract job type / location / company from free text using live DB values
 export const extractEntities = (message, known) => {
   const msg = message.toLowerCase();
   const found = { location: null, company: null };
-
   found.location = known.locations.find(loc => msg.includes(loc.toLowerCase())) || null;
   found.company = known.companies.find(c => msg.includes(c.toLowerCase())) || null;
 
-  // crude job-title guess: strip known filler words, keep the rest as a title hint
-  const stripWords = ["job", "jobs", "in", "at", "for", "show", "me", "find", "search", "openings", "opening", ...(found.location ? [found.location.toLowerCase()] : []), ...(found.company ? [found.company.toLowerCase()] : [])];
-  const titleGuess = msg
-    .split(/\s+/)
-    .filter(w => !stripWords.includes(w))
-    .join(" ")
-    .trim();
-
+  const stripWords = ["job", "jobs", "in", "at", "for", "show", "me", "find", "search", "openings", "opening",
+    ...(found.location ? [found.location.toLowerCase()] : []),
+    ...(found.company ? [found.company.toLowerCase()] : [])];
+  const titleGuess = msg.split(/\s+/).filter(w => !stripWords.includes(w)).join(" ").trim();
   found.titleHint = titleGuess || null;
   return found;
 };
@@ -150,13 +167,9 @@ ${liveContext}
 QUESTION:
 ${question}
 `;
-    const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt
-    });
-    return response.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, info not available.";
+    return await generateWithFallback(prompt);
   } catch (err) {
-    console.error("getWebsiteAnswer error:", err);
-    return "AI error.";
+    console.error("getWebsiteAnswer error (both providers failed):", err);
+    return "I'm having trouble connecting right now — please try again in a moment.";
   }
 };
