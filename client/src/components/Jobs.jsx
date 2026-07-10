@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import FilterCard from "./FilterCard";
 import Job from "./Job";
@@ -14,10 +14,19 @@ function Jobs() {
 
   const { allJobs, filters } = useSelector((state) => state.job);
 
+  // live, debounced search — fires automatically as user types or clears the box
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setActiveKeyword(searchInput.trim());
+      setCurrentPage(1);
+    }, 400); // 400ms debounce so it doesn't fire on every keystroke
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const { totalPages, loading } = useGetAllJobs({
     page: currentPage,
     location: filters.location || "",
-    industry: filters.industry || "",
     company: filters.company || "",
     minSalary: filters.minSalary || 0,
     maxSalary: filters.maxSalary || 0,
