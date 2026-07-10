@@ -42,7 +42,7 @@ function formatTime(date) {
 function Botinterface({ onClose }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
-    { sender: "bot", text: "Hi there 👋 I can help you find jobs, check on applications, or answer questions about this site. What can I do for you?", time: new Date() },
+    { sender: "bot", text: "Hi there 👋 I can help you find jobs, check on applications, or answer questions about this site. What can I do for you?", time: new Date(), options: null },
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
@@ -61,7 +61,12 @@ function Botinterface({ onClose }) {
   const sendMessage = async (text) => {
     if (!text.trim()) return;
 
-    setMessages((prev) => [...prev, { sender: "user", text, time: new Date() }]);
+    // Clear options on the last bot message so old buttons don't linger once the user has responded
+    setMessages((prev) =>
+      prev.map((m, i) => (i === prev.length - 1 && m.sender === "bot" ? { ...m, options: null } : m))
+    );
+
+    setMessages((prev) => [...prev, { sender: "user", text, time: new Date(), options: null }]);
     setInput("");
     setIsTyping(true);
 
@@ -73,12 +78,17 @@ function Botinterface({ onClose }) {
 
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: response.data.message, time: new Date() },
+        {
+          sender: "bot",
+          text: response.data.message,
+          time: new Date(),
+          options: response.data.options || null,
+        },
       ]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: "Sorry, something went wrong on my end. Please try again.", time: new Date() },
+        { sender: "bot", text: "Sorry, something went wrong on my end. Please try again.", time: new Date(), options: null },
       ]);
       console.error(err);
     } finally {
@@ -158,6 +168,22 @@ function Botinterface({ onClose }) {
                   {m.text}
                 </div>
                 <span className="text-[10px] text-slate-400 mt-1 px-1">{formatTime(m.time)}</span>
+
+                {/* Quick-reply buttons attached to this specific bot message, when the backend sent options */}
+                {m.sender === "bot" && m.options && m.options.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {m.options.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => sendMessage(opt)}
+                        disabled={isTyping}
+                        className="text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-full hover:bg-orange-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}

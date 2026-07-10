@@ -14,8 +14,6 @@ import {
 
 import Job from "../Model/jobmodel.js";
 
-// Words that signal the user is asking an INFO question, not searching for a job,
-// even if the word "job" appears in the message.
 const infoWords = ["type", "types", "kind", "kinds", "what", "tell", "explain", "list", "how", "does", "work"];
 
 const localIntent = (msg) => {
@@ -33,19 +31,45 @@ const localIntent = (msg) => {
   const hasJobWord = words.includes("job") || words.includes("jobs") || words.includes("vacancy") || words.includes("opening");
   const isInfoQuestion = infoWords.some(w => words.includes(w));
 
-  // Only fast-path to JOB_SEARCH if it mentions a job word AND isn't phrased as an info question.
   if (hasJobWord && !isInfoQuestion)
     return "JOB_SEARCH";
 
   if (words.includes("company") || words.includes("companies"))
     return "COMPANY_INFO";
 
-  return "UNKNOWN"; // falls through to AI classifier for nuance
+  return "UNKNOWN";
 };
 
-// ⭐ Dynamic multi-filter search — location, company, and/or title, any combo
-// Title matching is word-by-word (AND) so "backend develop" matches "Backend Developer"
-const searchJobs = async ({ title, location, company: companyName }) => {
+// Get up to `limit` distinct job titles currently open, for use as quick-reply buttons
+const getJobTitleOptions = async (limit = 8) => {
+  const titles = await Job.distinct("title");
+  return titles.filter(Boolean).slice(0, limit);
+};
+
+// Exact-match search — used when the user clicked a button, so we trust the value fully
+const searchJobsExact = async ({ title, location, company: companyName }) => {
+  const conditions = {};
+  if (title) conditions.title = { $regex: `^${title}$`, $options: "i" };
+  if (location) conditions.location = { $regex: location, $options: "i" };
+
+  let jobs = await Job.find(conditions).populate("company", "name").select("title location Salary jobtype").limit(5);
+
+  if (companyName) {
+    jobs = jobs.filter(j => j.company?.name?.toLowerCase() === companyName.toLowerCase());
+  }
+
+  if (jobs.length === 0) {
+    return `No current openings for "${title || "that"}" right now. Want to see something else?`;
+  }
+
+  const list = jobs
+    .map(j => `• ${j.title} at ${j.company?.name || "Unknown"} (${j.location}, ₹${j.Salary?.toLocaleString("en-IN")})`)
+    .join("\n");
+  return `Here's what I found:\n${list}`;
+};
+
+// Fuzzy word-by-word search — used when the user typed free text, not a button click
+const searchJobsFuzzy = async ({ title, location, company: companyName }) => {
   const conditions = {};
 
   if (title) {
@@ -56,8 +80,7 @@ const searchJobs = async ({ title, location, company: companyName }) => {
   }
   if (location) conditions.location = { $regex: location, $options: "i" };
 
-  let query = Job.find(conditions).populate("company", "name").select("title location Salary jobtype").limit(5);
-  let jobs = await query;
+  let jobs = await Job.find(conditions).populate("company", "name").select("title location Salary jobtype").limit(5);
 
   if (companyName) {
     jobs = jobs.filter(j => j.company?.name?.toLowerCase().includes(companyName.toLowerCase()));
@@ -91,18 +114,29 @@ const chatbotcontroller = async (req, res) => {
   if (!session.context) session.context = {};
 
   let reply;
+  let options = null; // quick-reply buttons for the frontend to render
 
   try {
-    // ⭐ Every message: check live DB vocabulary + extract real entities from it
     const known = await getKnownEntities();
     const entities = extractEntities(message, known);
 
+    // ── Step: user is replying after we showed them job title buttons ──
     if (session.currentStep === "ASK_JOB_TYPE") {
-      // Follow-up answer to "what type of job?" — combine with any earlier filters
+      const offered = session.offeredOptions || [];
+      const clickedButton = offered.find(o => o.toLowerCase() === message.trim().toLowerCase());
+
       const combined = { ...session.context, title: message.trim() };
       session.context = combined;
-      reply = await searchJobs(combined);
+
+      // If it exactly matches a button we offered, use exact search (guaranteed correct).
+      // Otherwise fall back to fuzzy search since they typed something free-form.
+      reply = clickedButton
+        ? await searchJobsExact(combined)
+        : await searchJobsFuzzy(combined);
+
       session.currentStep = "DONE";
+      session.offeredOptions = null;
+
     } else {
       let intent = localIntent(message);
 
@@ -126,15 +160,22 @@ const chatbotcontroller = async (req, res) => {
           break;
 
         case "JOB_SEARCH": {
-          // If the message itself already contains a real location/company/title, search immediately
           const hasSomething = entities.location || entities.company || entities.titleHint;
           if (hasSomething) {
             session.context = { title: entities.titleHint, location: entities.location, company: entities.company };
-            reply = await searchJobs(session.context);
+            reply = await searchJobsFuzzy(session.context);
             session.currentStep = "DONE";
           } else {
-            reply = "What type of job are you looking for?";
-            session.currentStep = "ASK_JOB_TYPE";
+            // No specifics given — offer real job titles as clickable options instead of open text
+            const titleOptions = await getJobTitleOptions();
+            if (titleOptions.length) {
+              reply = "What type of job are you looking for? Pick one or type your own:";
+              options = titleOptions;
+              session.offeredOptions = titleOptions;
+              session.currentStep = "ASK_JOB_TYPE";
+            } else {
+              reply = "We don't have any job listings yet — check back soon!";
+            }
           }
           break;
         }
@@ -146,8 +187,11 @@ const chatbotcontroller = async (req, res) => {
             reply = atCompany.length
               ? `${entities.company} currently has ${atCompany.length} open role(s): ${atCompany.map(j => j.title).join(", ")}`
               : `I don't see any current openings at ${entities.company}.`;
+          } else if (known.companies.length) {
+            reply = "Here are the companies currently hiring — tap one to see their openings:";
+            options = known.companies.slice(0, 10);
           } else {
-            reply = `We currently have ${known.companies.length} companies on the platform: ${known.companies.slice(0, 15).join(", ")}${known.companies.length > 15 ? "..." : ""}`;
+            reply = "We don't have any companies listed yet.";
           }
           break;
 
@@ -182,6 +226,7 @@ const chatbotcontroller = async (req, res) => {
   return res.json({
     success: true,
     message: reply,
+    options,
     context: session.context,
     currentStep: session.currentStep
   });
